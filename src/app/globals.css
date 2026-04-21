@@ -1,0 +1,758 @@
+@import "tailwindcss";
+
+/* Tailwind v4 dark variant — driven by next-themes class on <html>.
+   Both `.dark` and `.monochrome` activate dark-mode utilities since
+   monochrome is a dark-base palette. */
+@custom-variant dark (&:where(.dark, .dark *, .monochrome, .monochrome *));
+
+:root,
+:root.dark {
+  /* ── DARK theme — cosmic depth ────────────────────────────── */
+  --bg-base: #06060f;
+  --bg-surface: #0f0f1a;
+  --bg-elevated: #15152a;
+  --text-primary: #e4e4e7;
+  --text-secondary: #d4d4d8;
+  --text-muted: #a1a1aa;
+  --border-token: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.14);
+  --accent: #60a5fa;
+  --accent-strong: #3b82f6;
+  --accent-soft: rgba(99, 102, 241, 0.18);
+  --accent-glow: rgba(99, 102, 241, 0.35);
+  --violet-soft: rgba(168, 85, 247, 0.14);
+  --cyan-soft: rgba(56, 189, 248, 0.12);
+  --noise-opacity: 0.025;
+
+  /* Atmospheric gradient mesh — visible when no shader overlay */
+  --bg-atmosphere:
+    radial-gradient(1100px 600px at 18% -8%, rgba(99, 102, 241, 0.20), transparent 60%),
+    radial-gradient(900px 600px at 110% 12%, rgba(168, 85, 247, 0.14), transparent 65%),
+    radial-gradient(800px 500px at 50% 110%, rgba(56, 189, 248, 0.10), transparent 60%);
+
+  /* Card chrome */
+  --card-bg: rgba(15, 15, 26, 0.70);
+  --card-border: rgba(255, 255, 255, 0.07);
+  --card-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.04) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.30) inset,
+    0 30px 60px -20px rgba(0, 0, 0, 0.55),
+    0 8px 24px -8px rgba(0, 0, 0, 0.35);
+  --card-bezel-bg: rgba(255, 255, 255, 0.025);
+  --card-bezel-border: rgba(255, 255, 255, 0.05);
+
+  /* Legacy aliases */
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+
+  /* Easing tokens — Emil Kowalski */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Duration tokens */
+  --duration-press: 160ms;
+  --duration-fast: 125ms;
+  --duration-normal: 200ms;
+  --duration-slow: 300ms;
+}
+
+/* ── LIGHT theme — editorial luxury ──────────────────────────── */
+/* A warm, refined light palette with subtle blue/violet/amber highlights.
+   Not a generic Apple clone — opinionated, layered, gradient-rich. */
+:root.light {
+  --bg-base: #fbfaf7;          /* warm off-white (paper feel) */
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --text-primary: #1a1b25;     /* deep ink, not pure black */
+  --text-secondary: #2d2f3a;
+  --text-muted: #61627a;       /* soft warm gray */
+  --border-token: rgba(28, 30, 60, 0.08);
+  --border-strong: rgba(28, 30, 60, 0.14);
+  --accent: #4f46e5;           /* indigo — richer than basic blue */
+  --accent-strong: #4338ca;
+  --accent-soft: rgba(79, 70, 229, 0.10);
+  --accent-glow: rgba(79, 70, 229, 0.18);
+  --violet-soft: rgba(168, 85, 247, 0.08);
+  --cyan-soft: rgba(56, 189, 248, 0.07);
+  --noise-opacity: 0.012;       /* paper grain */
+
+  /* Atmospheric gradient mesh — soft warm light w/ brand color highlights */
+  --bg-atmosphere:
+    radial-gradient(1200px 700px at 12% -10%, rgba(79, 70, 229, 0.10), transparent 55%),
+    radial-gradient(1000px 700px at 105% 8%, rgba(236, 72, 153, 0.06), transparent 60%),
+    radial-gradient(900px 600px at 50% 110%, rgba(56, 189, 248, 0.07), transparent 60%),
+    radial-gradient(700px 500px at 88% 58%, rgba(251, 191, 36, 0.04), transparent 65%);
+
+  /* Card chrome — frosted white with soft layered shadows */
+  --card-bg: rgba(255, 255, 255, 0.78);
+  --card-border: rgba(28, 30, 60, 0.07);
+  --card-shadow:
+    0 1px 0 rgba(255, 255, 255, 1) inset,
+    0 -1px 0 rgba(28, 30, 60, 0.04) inset,
+    0 24px 48px -16px rgba(28, 30, 60, 0.10),
+    0 6px 16px -6px rgba(28, 30, 60, 0.06);
+  --card-bezel-bg: rgba(28, 30, 60, 0.025);
+  --card-bezel-border: rgba(28, 30, 60, 0.05);
+
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+}
+
+/* ── MONOCHROME theme — HERO3 monochrome precision ───────────── */
+/* Pure grayscale, dot-mesh backdrop, layered radial highlights.
+   Inspired by HeroOrbitDeck — minimal, refined, monochrome. */
+/* color-scheme tells the browser which UA defaults to use (form controls,
+   scrollbars, iframe default backgrounds). Without this, embedded iframes
+   render with a white default chrome in Chrome regardless of body bg. */
+:root.dark { color-scheme: dark; }
+:root.light { color-scheme: light; }
+:root.monochrome { color-scheme: dark; }
+
+:root.monochrome {
+  --bg-base: #040404;
+  --bg-surface: #0c0c0c;
+  --bg-elevated: #161616;
+  --text-primary: #fafafa;
+  --text-secondary: #e5e5e5;
+  --text-muted: rgba(245, 245, 245, 0.6);
+  --border-token: rgba(255, 255, 255, 0.12);
+  --border-strong: rgba(255, 255, 255, 0.20);
+  --accent: #fafafa;
+  --accent-strong: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.08);
+  --accent-glow: rgba(255, 255, 255, 0.18);
+  --violet-soft: rgba(255, 255, 255, 0.06);
+  --cyan-soft: rgba(255, 255, 255, 0.04);
+  --noise-opacity: 0;
+
+  /* Layered backdrop: radial highlights at corners + spotlight at top */
+  --bg-atmosphere:
+    radial-gradient(ellipse 80% 60% at 10% -10%, rgba(255, 255, 255, 0.15), transparent 60%),
+    radial-gradient(ellipse 90% 70% at 90% -20%, rgba(180, 180, 180, 0.10), transparent 70%),
+    radial-gradient(60% 50% at 50% 8%, rgba(255, 255, 255, 0.10), transparent 70%);
+
+  /* Dot mesh — overlaid via body::after below */
+  --dot-overlay-color-a: rgba(250, 250, 250, 0.10);
+  --dot-overlay-color-b: rgba(250, 250, 250, 0.06);
+  --dot-overlay-size: 14px;
+
+  --card-bg: rgba(255, 255, 255, 0.05);
+  --card-border: rgba(255, 255, 255, 0.10);
+  --card-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.08) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.40) inset,
+    0 32px 64px -24px rgba(0, 0, 0, 0.65),
+    0 8px 24px -8px rgba(0, 0, 0, 0.45);
+  --card-bezel-bg: rgba(255, 255, 255, 0.03);
+  --card-bezel-border: rgba(255, 255, 255, 0.06);
+
+  --background: var(--bg-base);
+  --foreground: var(--text-primary);
+}
+
+@theme inline {
+  --color-background: var(--bg-base);
+  --color-foreground: var(--text-primary);
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-border-token: var(--border-token);
+  --color-border-strong: var(--border-strong);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Paint the viewport canvas via <html> so no child stacking context can
+   leak the browser's default canvas color (white in light scheme, black in
+   dark) through gaps. <body> stays transparent — its `body::before`
+   atmospheric backdrop sits on top of the html canvas. */
+html {
+  background: var(--bg-base);
+  transition: background-color 350ms var(--ease-out, ease);
+}
+
+body {
+  background: transparent;
+  color: var(--text-primary);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  scroll-behavior: smooth;
+  transition: color 350ms var(--ease-out, ease);
+  position: relative;
+  isolation: isolate;
+}
+
+/* ── Atmospheric backdrop ───────────────────────────────────── */
+/* Sits behind content; visible whenever no full-screen shader overlays.
+   `body::before` is BELOW everything; `body::after` was the noise layer. */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bg-atmosphere), var(--bg-base);
+  background-attachment: fixed;
+  transition: opacity 350ms var(--ease-out, ease);
+}
+
+/* ── Typography polish ──────────────────────────────────────── */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
+
+/* ── Unified heading typography across all feature pages ─────
+   Every feature page uses the same pairing AND sizes:
+     • H1 — Young Serif display, clamp(2.5rem, 4.5vw, 4rem)
+     • H2 — Young Serif display, clamp(1.5rem, 2.6vw, 2.25rem)
+     • H3 — Geist sans, clamp(1.125rem, 1.4vw, 1.375rem)
+     • Body — Geist sans
+
+   `:where()` keeps specificity at 0 for *family/weight*; size is forced
+   with `!important` because Tailwind size utilities (text-5xl etc.) on
+   feature pages would otherwise win and produce inconsistent sizes.
+   The landing page is fully opted-out so its hero typography (much larger
+   sizes, custom font weights) is preserved exactly as designed. */
+:where(h1, h2) {
+  font-family: var(--font-display), Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+}
+:where(h3) {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+/* Forced consistent sizes on feature-page headings.
+   The selector explicitly excludes any element inside [data-landing-page]
+   so the landing's inline `style={{ fontSize: clamp(...) }}` declarations
+   are never overridden — `:not([data-landing-page] *)` makes the rule not
+   match landing-page descendants at all, instead of trying to "reset" them
+   afterward (which fails because !important on a reset still beats the
+   landing's plain inline style). */
+body :is(h1):not([data-landing-page] *):not([data-landing-page]) {
+  font-size: clamp(2.5rem, 4.5vw, 4rem) !important;
+  line-height: 1.08 !important;
+}
+body :is(h2):not([data-landing-page] *):not([data-landing-page]) {
+  font-size: clamp(1.5rem, 2.6vw, 2.25rem) !important;
+  line-height: 1.15 !important;
+}
+body :is(h3):not([data-landing-page] *):not([data-landing-page]) {
+  font-size: clamp(1.125rem, 1.4vw, 1.375rem) !important;
+  line-height: 1.25 !important;
+}
+
+/* Landing-page heading family/weight: NO reset rule is needed.
+   The global `:where(h1, h2)` rule above has specificity 0, so Tailwind's
+   inline `font-[family-name:var(--font-display)]` utility (specificity 0,1,0)
+   wins automatically — restoring the original Young Serif for the landing
+   hero. Adding a reset here previously *forced* `inherit` on landing
+   headings, which was higher specificity than Tailwind's utility and
+   overrode the design's intended display serif. */
+
+/* Brand mark / "AdmitEdge" wordmark in nav stays sans for tight kerning */
+:where([data-brand-mark]) {
+  font-family: var(--font-sans), system-ui, sans-serif !important;
+  letter-spacing: -0.02em !important;
+}
+
+/* Tabular figures for score/data displays */
+.font-mono, [data-score] {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Skip-to-content ────────────────────────────────────────── */
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 16px;
+  z-index: 9999;
+  padding: 8px 16px;
+  background: var(--background);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.3);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 200ms var(--ease-out);
+}
+.skip-link:focus {
+  top: 16px;
+}
+
+/* ── Print styles (Resume Helper PDF export) ────────────────── */
+@media print {
+  /* Reset the full page chrome */
+  html, body {
+    background: white !important;
+    color: #111 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  body::after, body::before {
+    display: none !important;
+  }
+
+  /* Hide everything by default, then we'll reveal only the preview */
+  body * {
+    visibility: hidden;
+  }
+  .resume-preview, .resume-preview * {
+    visibility: visible;
+  }
+
+  /* Position the preview at the top of the printable page */
+  .resume-preview {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    background: white !important;
+    color: #111 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+    width: 100% !important;
+    font-family: Georgia, "Times New Roman", serif !important;
+    font-size: 10.5pt !important;
+    line-height: 1.35 !important;
+  }
+
+  /* Typography overrides for print readability */
+  .resume-preview h1 {
+    font-size: 18pt !important;
+    font-weight: 700 !important;
+    letter-spacing: -0.01em !important;
+    color: #111 !important;
+    margin: 0 0 4pt 0 !important;
+  }
+  .resume-preview h3 {
+    font-size: 9pt !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.12em !important;
+    text-transform: uppercase !important;
+    color: #333 !important;
+    padding-bottom: 2pt !important;
+    margin: 10pt 0 4pt 0 !important;
+    border-bottom: 1pt solid #999 !important;
+  }
+  .resume-preview p, .resume-preview li, .resume-preview span {
+    color: #222 !important;
+  }
+  .resume-preview .resume-section {
+    page-break-inside: avoid;
+    margin-bottom: 8pt !important;
+  }
+
+  /* Force everything in dark UI elements to be invisible */
+  .print\:hidden {
+    display: none !important;
+  }
+
+  @page {
+    margin: 0.5in 0.6in;
+    size: letter;
+  }
+}
+
+/* ── Noise texture overlay (suppressed in monochrome) ───────── */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 9998;
+  pointer-events: none;
+  opacity: var(--noise-opacity, 0.025);
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  background-size: 256px 256px;
+}
+
+/* ── Dot-mesh overlay (monochrome theme only) ────────────────── */
+:root.monochrome body::after {
+  /* Replace noise with a precise repeating dot grid (HERO3 aesthetic). */
+  opacity: 0.85;
+  background-image:
+    radial-gradient(circle at 25% 25%, var(--dot-overlay-color-a, rgba(250,250,250,0.10)) 0.7px, transparent 1px),
+    radial-gradient(circle at 75% 75%, var(--dot-overlay-color-b, rgba(250,250,250,0.06)) 0.7px, transparent 1px);
+  background-size: var(--dot-overlay-size, 14px) var(--dot-overlay-size, 14px);
+  background-repeat: repeat;
+  z-index: 0; /* Sit behind content but above the body bg */
+  mix-blend-mode: normal;
+}
+
+/* Monochrome: page-level text inherits theme tokens automatically.
+   Force any hardcoded zinc/white text to behave as monochrome white. */
+:root.monochrome body :where(
+  .text-white, .text-zinc-100, .text-zinc-200, .text-zinc-300, .text-gradient
+) {
+  color: var(--text-primary);
+}
+:root.monochrome body :where(
+  .text-zinc-400, .text-zinc-500, .text-zinc-600
+) {
+  color: var(--text-muted);
+}
+
+/* ─── HERO3 monochrome — restrained enforcement ─────────────── */
+/* Philosophy: in monochrome mode, the AESTHETIC (backdrop, dot mesh, dark
+   surfaces, grayscale headings/body text) defines the look. Any color that
+   carries FUNCTIONAL meaning — score levels, status badges, classification
+   tiers, charts, progress fills, semantic red/green for success/error, etc.
+   — must be PRESERVED so users don't lose information.
+
+   Therefore monochrome only:
+   1. Sets the body backdrop tokens (already done in :root.monochrome above)
+   2. Forces page-level text (text-white, text-zinc-*) to the grayscale
+      tokens (already done above)
+   3. Does NOT override Tailwind color utilities (text-blue-500, bg-emerald-500,
+      gradients, borders) — these are presumed functional and stay colored.
+
+   Components can OPT IN to extra desaturation by adding the class
+   `.mono-mute` to wrappers that are purely decorative. Default is keep color. */
+
+/* Picker / brand controls outside #main-content already auto-adapt via
+   theme tokens, so no extra rules are needed for them in monochrome. */
+
+/* Optional: any element explicitly marked `.mono-mute` gets desaturated.
+   Use this sparingly on purely decorative chrome that hurts the monochrome
+   aesthetic — never on functional UI. */
+:root.monochrome .mono-mute {
+  filter: grayscale(1);
+}
+
+/* HERO3 cards have a thin, crisp border. Override the standard glass border
+   tint so feature-page cards in monochrome read as precise white-on-black. */
+:root.monochrome .glass {
+  backdrop-filter: blur(20px) saturate(120%);
+}
+
+/* Slightly stronger border on rounded surfaces in monochrome — HERO3 uses
+   a more visible outline since color isn't doing the work. */
+:root.monochrome .feature-card-depth,
+:root.monochrome .premium-depth-card {
+  border-color: var(--border-token);
+}
+
+/* ── Glass card — token-driven (adapts to any theme) ────────── */
+.glass {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(20px);
+  box-shadow: var(--card-shadow);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIGHT THEME — full surface treatment
+   ═══════════════════════════════════════════════════════════════
+   Goals:
+   1. Page-level text turns dark (was white-on-dark, now dark-on-light).
+   2. Dark "card" surfaces (.glass, .premium-depth-card, .feature-card-depth,
+      bg-[#hex] arbitrary darks) become LIGHT card surfaces with dark text.
+   3. White-translucent borders/rings flip to dark-translucent for visibility.
+   4. The landing page (/) is fully isolated — wrapped in
+      [data-landing-page] which opts OUT of every override here so it stays
+      visually identical regardless of picker choice.
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ─── 1. Page-level text → dark ─────────────────────────────── */
+:root.light body :where(
+  .text-white,
+  .text-zinc-100,
+  .text-zinc-200,
+  .text-zinc-300,
+  .text-gradient
+) {
+  color: var(--text-primary);
+}
+:root.light body :where(
+  .text-zinc-400,
+  .text-zinc-500,
+  .text-zinc-600
+) {
+  color: var(--text-muted);
+}
+
+/* ─── 2. Dark surfaces → light surfaces ─────────────────────── */
+/* .glass and .bezel are now token-driven (see :root.light --card-* vars);
+   no per-theme override needed. */
+
+/* .premium-depth-card: deep blue gradient → soft light gradient */
+:root.light .premium-depth-card {
+  background: linear-gradient(145deg, #f8f9fb 0%, #eef0f4 100%);
+  box-shadow:
+    0 40px 100px -20px rgba(15, 23, 42, 0.12),
+    0 20px 40px -20px rgba(15, 23, 42, 0.08),
+    inset 0 1px 2px rgba(255, 255, 255, 0.9),
+    inset 0 -2px 4px rgba(15, 23, 42, 0.04);
+  border-color: rgba(15, 23, 42, 0.06);
+}
+
+/* .feature-card-depth: dark feature tile → light feature tile */
+:root.light .feature-card-depth {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.04) 0%, rgba(15, 23, 42, 0.02) 100%);
+  border-color: rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 15px 30px rgba(15, 23, 42, 0.06),
+    inset 0 1px 1px rgba(255, 255, 255, 0.8),
+    inset 0 -1px 1px rgba(15, 23, 42, 0.03);
+}
+:root.light .feature-card-depth:hover {
+  border-color: rgba(15, 23, 42, 0.16);
+}
+
+/* Tailwind dark utility classes */
+:root.light .bg-zinc-950 {
+  background-color: var(--bg-surface) !important;
+}
+:root.light .bg-zinc-900 {
+  background-color: #f4f4f5 !important;
+}
+:root.light .bg-black {
+  background-color: var(--bg-surface) !important;
+}
+
+/* Arbitrary bg-[#hex] dark surfaces.
+   Use Tailwind's escaped class selector directly so we match only the exact
+   class — no `[class*="/"]` heuristic to exclude opacity variants (which
+   was buggy: it excluded any element that had ANY other utility containing
+   `/`, like `border-white/[0.06]`, breaking most overrides).
+   The selectors below match only when the element's class list contains
+   the exact escaped class name. */
+:root.light .bg-\[\#0a0a14\]  { background-color: var(--bg-surface) !important; }
+:root.light .bg-\[\#0c0c1a\]  { background-color: #f4f4f5 !important; }
+:root.light .bg-\[\#0f0f1c\]  { background-color: var(--bg-surface) !important; }
+:root.light .bg-\[\#12121f\]  { background-color: #f0f0f3 !important; }
+:root.light .bg-\[\#13131f\]  { background-color: #ececef !important; }
+:root.light .bg-\[\#06060f\]  { background-color: var(--bg-surface) !important; }
+:root.light .bg-\[\#1a1a2e\]  { background-color: #e8e8ec !important; }
+:root.light .bg-\[\#222222\]  { background-color: #e8e8ec !important; }
+
+/* Opacity variants — Tailwind generates classes like
+   `bg-\[\#0c0c1a\]\/90`. Match each explicit opacity used in the codebase. */
+:root.light .bg-\[\#0a0a14\]\/60,
+:root.light .bg-\[\#0a0a14\]\/80,
+:root.light .bg-\[\#0a0a14\]\/90 { background-color: rgba(255, 255, 255, 0.85) !important; }
+
+:root.light .bg-\[\#0c0c1a\]\/60,
+:root.light .bg-\[\#0c0c1a\]\/80,
+:root.light .bg-\[\#0c0c1a\]\/90 { background-color: rgba(244, 244, 245, 0.92) !important; }
+
+:root.light .bg-\[\#0f0f1c\]\/60,
+:root.light .bg-\[\#0f0f1c\]\/80,
+:root.light .bg-\[\#0f0f1c\]\/90 { background-color: rgba(255, 255, 255, 0.92) !important; }
+
+:root.light .bg-\[\#13131f\]\/60,
+:root.light .bg-\[\#13131f\]\/80,
+:root.light .bg-\[\#13131f\]\/90 { background-color: rgba(236, 236, 239, 0.92) !important; }
+
+:root.light .bg-\[\#06060f\]\/60,
+:root.light .bg-\[\#06060f\]\/80,
+:root.light .bg-\[\#06060f\]\/90,
+:root.light .bg-\[\#06060f\]\/95 { background-color: rgba(255, 255, 255, 0.85) !important; }
+
+/* ─── 3. Border / ring inversions ───────────────────────────── */
+/* white/[0.0X] borders are invisible on white. Flip to dark/[0.0X]. */
+:root.light [class*="border-white/[0.0"] { border-color: rgba(15, 23, 42, 0.08) !important; }
+:root.light [class*="border-white/[0.1"] { border-color: rgba(15, 23, 42, 0.1) !important; }
+:root.light [class*="ring-white/[0.0"] { --tw-ring-color: rgba(15, 23, 42, 0.08) !important; box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08) !important; }
+:root.light [class*="ring-white/[0.1"] { --tw-ring-color: rgba(15, 23, 42, 0.1) !important; }
+
+/* ─── 4. Landing page isolation ─────────────────────────────── */
+/* Landing has its own dark identity — opt out of EVERY override above.
+   `:where([data-landing-page] *)` has 0 specificity but matches everything
+   in the landing subtree; combined with `revert` it restores the un-overridden
+   value. We use a simpler approach: re-set the values to their dark-mode
+   equivalents inside the landing scope. */
+:root.light [data-landing-page],
+:root.light [data-landing-page] * {
+  /* Page-level text revert */
+}
+:root.light [data-landing-page] :where(
+  .text-white, .text-zinc-100, .text-zinc-200, .text-zinc-300, .text-gradient
+) {
+  color: rgb(244, 244, 245);
+}
+:root.light [data-landing-page] :where(
+  .text-zinc-400, .text-zinc-500, .text-zinc-600
+) {
+  color: rgb(161, 161, 170);
+}
+:root.light [data-landing-page] .glass {
+  background: rgba(6, 6, 15, 0.88);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.06),
+    inset 0 -1px 1px rgba(10, 16, 29, 0.4),
+    0 8px 24px rgba(10, 16, 29, 0.35);
+}
+:root.light [data-landing-page] .bezel {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.04);
+}
+:root.light [data-landing-page] .premium-depth-card {
+  background: linear-gradient(145deg, #162C6D 0%, #0A101D 100%);
+  box-shadow:
+    0 40px 100px -20px rgba(10, 16, 29, 0.95),
+    0 20px 40px -20px rgba(10, 16, 29, 0.85),
+    inset 0 1px 2px rgba(255, 255, 255, 0.15),
+    inset 0 -2px 4px rgba(10, 16, 29, 0.8);
+  border-color: rgba(255, 255, 255, 0.06);
+}
+:root.light [data-landing-page] .feature-card-depth {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.02) 100%);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow:
+    0 15px 30px rgba(10, 16, 29, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.1),
+    inset 0 -1px 1px rgba(10, 16, 29, 0.5);
+}
+:root.light [data-landing-page] .feature-card-depth:hover {
+  border-color: rgba(255, 255, 255, 0.14);
+}
+:root.light [data-landing-page] .bg-zinc-950 { background-color: rgb(9, 9, 11) !important; }
+:root.light [data-landing-page] .bg-zinc-900 { background-color: rgb(24, 24, 27) !important; }
+:root.light [data-landing-page] .bg-black    { background-color: rgb(0, 0, 0) !important; }
+/* Landing page reverts: same exact-class selector approach. */
+:root.light [data-landing-page] .bg-\[\#0a0a14\] { background-color: #0a0a14 !important; }
+:root.light [data-landing-page] .bg-\[\#0c0c1a\] { background-color: #0c0c1a !important; }
+:root.light [data-landing-page] .bg-\[\#0f0f1c\] { background-color: #0f0f1c !important; }
+:root.light [data-landing-page] .bg-\[\#13131f\] { background-color: #13131f !important; }
+:root.light [data-landing-page] .bg-\[\#06060f\] { background-color: #06060f !important; }
+:root.light [data-landing-page] .bg-\[\#0a0a14\]\/60,
+:root.light [data-landing-page] .bg-\[\#0a0a14\]\/80,
+:root.light [data-landing-page] .bg-\[\#0a0a14\]\/90 { background-color: rgba(10, 10, 20, 0.9) !important; }
+:root.light [data-landing-page] .bg-\[\#0c0c1a\]\/60,
+:root.light [data-landing-page] .bg-\[\#0c0c1a\]\/80,
+:root.light [data-landing-page] .bg-\[\#0c0c1a\]\/90 { background-color: rgba(12, 12, 26, 0.9) !important; }
+:root.light [data-landing-page] .bg-\[\#0f0f1c\]\/60,
+:root.light [data-landing-page] .bg-\[\#0f0f1c\]\/80,
+:root.light [data-landing-page] .bg-\[\#0f0f1c\]\/90 { background-color: rgba(15, 15, 28, 0.9) !important; }
+:root.light [data-landing-page] .bg-\[\#13131f\]\/60,
+:root.light [data-landing-page] .bg-\[\#13131f\]\/80,
+:root.light [data-landing-page] .bg-\[\#13131f\]\/90 { background-color: rgba(19, 19, 31, 0.9) !important; }
+:root.light [data-landing-page] .bg-\[\#06060f\]\/60,
+:root.light [data-landing-page] .bg-\[\#06060f\]\/80,
+:root.light [data-landing-page] .bg-\[\#06060f\]\/90,
+:root.light [data-landing-page] .bg-\[\#06060f\]\/95 { background-color: rgba(6, 6, 15, 0.95) !important; }
+:root.light [data-landing-page] [class*="border-white/[0.0"] { border-color: rgba(255, 255, 255, 0.08) !important; }
+:root.light [data-landing-page] [class*="border-white/[0.1"] { border-color: rgba(255, 255, 255, 0.14) !important; }
+:root.light [data-landing-page] [class*="ring-white/[0.0"] { --tw-ring-color: rgba(255, 255, 255, 0.08) !important; box-shadow: none !important; }
+:root.light [data-landing-page] [class*="ring-white/[0.1"] { --tw-ring-color: rgba(255, 255, 255, 0.14) !important; }
+
+/* Double-bezel outer shell — wraps .glass cards for machined depth */
+.bezel {
+  padding: 6px;
+  background: var(--card-bezel-bg);
+  border: 1px solid var(--card-bezel-border);
+  border-radius: calc(var(--radius, 1rem) + 6px);
+}
+.bezel > .glass {
+  border-radius: var(--radius, 1rem);
+}
+
+/* Display headline — solid white, let the display font do the work */
+.text-gradient {
+  color: #ffffff;
+}
+
+/* Shimmer loading */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.06) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Pulse glow for loading */
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 15px rgba(59, 130, 246, 0.15); }
+  50% { box-shadow: 0 0 30px rgba(59, 130, 246, 0.3); }
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 2s ease-in-out infinite;
+}
+
+/* ── Reduced motion ─────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ── Button press feedback ──────────────────────────────────── */
+button, [role="button"], a.inline-flex {
+  transition: transform var(--duration-press) var(--ease-out),
+              background-color var(--duration-normal) var(--ease-out),
+              color var(--duration-normal) var(--ease-out),
+              box-shadow var(--duration-normal) var(--ease-out),
+              border-color var(--duration-normal) var(--ease-out),
+              opacity var(--duration-normal) var(--ease-out);
+}
+button:active:not(:disabled), [role="button"]:active:not(:disabled), a.inline-flex:active {
+  transform: scale(0.97);
+}
+
+/* ── Global focus-visible ring ──────────────────────────────── */
+:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.6);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible, a:focus-visible, [role="button"]:focus-visible {
+  outline: 2px solid rgba(96, 165, 250, 0.7);
+  outline-offset: 2px;
+}
+
+/* ── Hover gate for touch devices ───────────────────────────── */
+@media (hover: none) {
+  .hover\:-translate-y-1:hover { transform: none !important; }
+  .hover\:scale-\[1\.02\]:hover { transform: none !important; }
+  .hover\:bg-white\/\[0\.08\]:hover { background-color: inherit !important; }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.08); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.15); }
+
+/* Selection */
+::selection {
+  background: rgba(59, 130, 246, 0.3);
+  color: white;
+}
+
+/* Orbital timeline gradient */
+.bg-gradient-orbital {
+  background: linear-gradient(to bottom right, #2563eb, #3b82f6, #60a5fa);
+}
+
+/* Orbital shadow */
+.shadow-orbital {
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}

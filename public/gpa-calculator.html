@@ -1,0 +1,1277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPA Calculator</title>
+  <script>
+    /* Read ?theme=light|dark from the parent (passed by gpa/page.tsx based
+       on the active picker theme) and apply it to <html> BEFORE first paint
+       so we never flash the wrong theme. */
+    (function () {
+      try {
+        var theme = new URLSearchParams(location.search).get('theme');
+        if (theme === 'light' || theme === 'dark') {
+          document.documentElement.setAttribute('data-theme', theme);
+        }
+      } catch (e) { /* no-op */ }
+    })();
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    /* Default canvas (dark widget) — overridden in light mode below.
+       Set on html so it applies to the iframe's canvas color. */
+    html {
+      color-scheme: dark;
+    }
+
+    :root {
+      --hs-w:    #60a5fa;
+      --hs-uw:   #93c5fd;
+      --col-w:   #3b82f6;
+      --col-uw:  #bfdbfe;
+      --bg:      #06060f;
+      --surface: rgba(6, 6, 15, 0.6);
+      --border:  rgba(255, 255, 255, 0.07);
+      --text:    #f1f5f9;
+      --muted:   #94a3b8;
+      --subtle:  #475569;
+    }
+
+    /* Light-theme overrides — applied when parent passes `?theme=light` and
+       the bootstrap script (below) sets `data-theme="light"` on <html>.
+       Flips the canvas + the text/border tokens used throughout the widget
+       so the same markup stays readable on a light page. Functional accent
+       colors (blue link/text, red errors, etc.) are intentionally kept. */
+    html[data-theme="light"] {
+      color-scheme: light;
+    }
+    html[data-theme="light"]:root {
+      --bg:      #ffffff;
+      --surface: rgba(255, 255, 255, 0.65);
+      --border:  rgba(15, 23, 42, 0.08);
+      --text:    #1a1b25;
+      --muted:   #52525b;
+      --subtle:  #a1a1aa;
+    }
+
+    body {
+      font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: transparent;
+      color: var(--text);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      display: none;
+    }
+
+    /* ── Header (hidden — parent page provides it) ── */
+    header {
+      display: none;
+    }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: rgba(59,130,246,.1);
+      border: 1px solid rgba(59,130,246,.28);
+      border-radius: 100px;
+      padding: .3rem .9rem;
+      font-size: .72rem; font-weight: 600;
+      color: #93c5fd;
+      text-transform: uppercase; letter-spacing: .09em;
+      margin-bottom: 1.4rem;
+    }
+    .badge svg { width: 11px; height: 11px; }
+
+    header h1 {
+      font-size: clamp(2.6rem, 7vw, 4.2rem);
+      font-weight: 800; letter-spacing: -0.04em; line-height: 1.05;
+      background: linear-gradient(140deg, #e0e7ff 0%, #93c5fd 30%, #60a5fa 60%, #67e8f9 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: .8rem;
+    }
+    header p { font-size: 1rem; color: var(--muted); max-width: 380px; margin: 0 auto; line-height: 1.65; }
+    .h-divider {
+      width: 56px; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(129,140,248,.5), transparent);
+      margin: 1.75rem auto 0;
+    }
+
+    /* ── Layout ── */
+    .container { position: relative; z-index: 1; max-width: 880px; margin: 0 auto; padding: 0 1rem 6rem; }
+
+    /* ── Glass card ── */
+    .card {
+      background: rgba(6, 6, 15, 0.92);
+      backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 22px;
+      padding: 1.8rem; margin-bottom: 1.5rem;
+      box-shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 24px 64px rgba(0,0,0,.45);
+    }
+    /* Light-theme card chrome — same shape, white surface, dark border. */
+    html[data-theme="light"] .card {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid rgba(15, 23, 42, 0.08);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 1) inset,
+        0 24px 64px rgba(15, 23, 42, 0.08);
+    }
+    html[data-theme="light"] .ytab {
+      background: rgba(15, 23, 42, 0.04);
+      border-color: rgba(15, 23, 42, 0.08);
+      color: var(--muted);
+    }
+    html[data-theme="light"] .ytab:hover {
+      background: rgba(15, 23, 42, 0.08);
+      color: var(--text);
+      border-color: rgba(15, 23, 42, 0.14);
+    }
+    html[data-theme="light"] .scale-table th {
+      background: rgba(15, 23, 42, 0.03);
+    }
+    html[data-theme="light"] input,
+    html[data-theme="light"] select {
+      background: rgba(15, 23, 42, 0.03) !important;
+      border-color: rgba(15, 23, 42, 0.10) !important;
+      color: var(--text) !important;
+    }
+    html[data-theme="light"] input:hover,
+    html[data-theme="light"] select:hover {
+      background: rgba(15, 23, 42, 0.06) !important;
+    }
+    html[data-theme="light"] .result-card {
+      background: rgba(15, 23, 42, 0.03);
+    }
+    html[data-theme="light"] .btn-secondary {
+      background: rgba(15, 23, 42, 0.05);
+      border-color: rgba(15, 23, 42, 0.10);
+    }
+
+    .card-header { display: flex; align-items: center; gap: .7rem; margin-bottom: 1.25rem; }
+    .card-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: linear-gradient(135deg, rgba(59,130,246,.22), rgba(37,99,235,.22));
+      border: 1px solid rgba(59,130,246,.28);
+      display: grid; place-items: center; flex-shrink: 0;
+    }
+    .card-icon svg { width: 17px; height: 17px; color: #93c5fd; }
+    .card-title { font-size: 1rem; font-weight: 700; }
+
+    /* ── Year tab bar ── */
+    .year-tab-bar {
+      display: flex; align-items: center;
+      gap: .45rem; flex-wrap: wrap;
+      margin-bottom: 1.3rem;
+      padding-bottom: 1.15rem;
+      border-bottom: 1px solid rgba(255,255,255,.05);
+    }
+
+    .ytab {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .42rem 1rem;
+      border-radius: 9px;
+      font-size: .83rem; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.04);
+      color: var(--muted);
+      transition: all .18s ease;
+      white-space: nowrap;
+    }
+    .ytab:hover { background: rgba(255,255,255,.08); color: var(--text); border-color: rgba(255,255,255,.14); }
+    .ytab.active {
+      background: linear-gradient(135deg, rgba(29,78,216,.35), rgba(37,99,235,.35));
+      border-color: rgba(59,130,246,.45);
+      color: #bfdbfe;
+      box-shadow: 0 0 18px rgba(59,130,246,.22);
+    }
+
+    .ytab-remove {
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: rgba(255,255,255,.08);
+      border: none;
+      cursor: pointer;
+      display: grid; place-items: center;
+      color: inherit;
+      transition: background .15s, color .15s;
+      padding: 0; line-height: 1;
+      font-family: 'DM Sans', sans-serif;
+      font-size: .8rem;
+    }
+    .ytab-remove:hover { background: rgba(239,68,68,.35); color: #fca5a5; }
+
+    .btn-add-year {
+      display: inline-flex; align-items: center; gap: .35rem;
+      padding: .4rem .9rem;
+      border-radius: 9px;
+      font-size: .82rem; font-weight: 600;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      border: 1px dashed rgba(255,255,255,.15);
+      background: transparent; color: var(--subtle);
+      transition: all .18s ease;
+      margin-left: auto;
+    }
+    .btn-add-year svg { width: 13px; height: 13px; }
+    .btn-add-year:hover { border-color: rgba(59,130,246,.45); color: #93c5fd; background: rgba(59,130,246,.07); }
+    .btn-add-year:disabled { opacity: .3; cursor: not-allowed; }
+    .btn-add-year:disabled:hover { border-color: rgba(255,255,255,.15); color: var(--subtle); background: transparent; }
+
+    /* ── Row header ── */
+    .row-header {
+      display: grid; grid-template-columns: 1fr 130px 165px 70px 44px 40px;
+      gap: .65rem; padding-bottom: .65rem;
+      border-bottom: 1px solid rgba(255,255,255,.05); margin-bottom: .85rem;
+    }
+    .row-header span { font-size: .68rem; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--subtle); }
+
+    /* ── Year panels ── */
+    .year-panel { display: none; }
+    .year-panel.active { display: block; }
+
+    /* ── Class rows ── */
+    .class-row {
+      display: grid; grid-template-columns: 1fr 130px 165px 70px 44px 40px;
+      gap: .65rem; margin-bottom: .6rem;
+      animation: rowIn .28s cubic-bezier(.22,1,.36,1) both;
+      transition: opacity .2s ease;
+    }
+    .class-row.non-core { opacity: .6; }
+
+    /* ── Core toggle ── */
+    .core-toggle {
+      height: 100%;
+      padding: 0 .45rem;
+      border-radius: 8px;
+      font-size: .7rem; font-weight: 700;
+      letter-spacing: .04em;
+      cursor: pointer;
+      font-family: 'DM Sans', sans-serif;
+      transition: all .18s ease;
+      white-space: nowrap;
+      display: grid; place-items: center;
+    }
+    .core-toggle.is-core {
+      background: rgba(59,130,246,.12);
+      border: 1px solid rgba(59,130,246,.28);
+      color: #93c5fd;
+    }
+    .core-toggle.is-core:hover {
+      background: rgba(59,130,246,.22);
+      border-color: rgba(59,130,246,.45);
+    }
+    .core-toggle.is-hs {
+      background: rgba(234,179,8,.1);
+      border: 1px solid rgba(234,179,8,.3);
+      color: #fbbf24;
+    }
+    .core-toggle.is-hs:hover {
+      background: rgba(234,179,8,.2);
+      border-color: rgba(234,179,8,.5);
+    }
+
+    @keyframes rowIn {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes rowOut {
+      from { opacity: 1; transform: translateY(0) scaleY(1); }
+      to   { opacity: 0; transform: translateY(-5px) scaleY(.9); }
+    }
+
+    /* ── Inputs ── */
+    input[type="text"], input[type="email"], input[type="password"], select {
+      width: 100%; padding: .55rem .85rem;
+      background: rgba(255,255,255,.03); border: 1px solid rgba(255,255,255,.06);
+      border-radius: 10px; font-size: .88rem;
+      font-family: 'DM Sans', sans-serif; color: var(--text);
+      outline: none; transition: border-color .18s, box-shadow .18s, background .18s;
+    }
+    input[type="text"]::placeholder,
+    input[type="email"]::placeholder,
+    input[type="password"]::placeholder { color: var(--subtle); }
+    input[type="text"]:hover,
+    input[type="email"]:hover,
+    input[type="password"]:hover { border-color: rgba(255,255,255,.15); background: rgba(2,6,23,.7); }
+    input[type="text"]:focus,
+    input[type="email"]:focus,
+    input[type="password"]:focus { border-color: rgba(59,130,246,.6); box-shadow: 0 0 0 3px rgba(59,130,246,.13); background: rgba(2,6,23,.75); }
+    select {
+      cursor: pointer; -webkit-appearance: none; appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23475569'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right .75rem center; padding-right: 2rem;
+    }
+    select:hover { border-color: rgba(255,255,255,.15); background-color: rgba(2,6,23,.7); }
+    select:focus { border-color: rgba(59,130,246,.6); box-shadow: 0 0 0 3px rgba(59,130,246,.13); background-color: rgba(2,6,23,.75); }
+    select option { background: #06060f; color: #f1f5f9; }
+    select.unset  { color: var(--subtle); }
+
+    /* ── Delete btn ── */
+    .del-btn {
+      width: 40px; height: 40px;
+      background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.18);
+      color: #f87171; border-radius: 10px; cursor: pointer;
+      display: grid; place-items: center;
+      transition: background .15s, border-color .15s, transform .15s;
+      flex-shrink: 0;
+    }
+    .del-btn svg { width: 14px; height: 14px; }
+    .del-btn:hover:not(:disabled) { background: rgba(239,68,68,.16); border-color: rgba(239,68,68,.45); transform: scale(1.05); }
+    .del-btn:disabled { opacity: .22; cursor: not-allowed; }
+
+    /* ── Action buttons ── */
+    .actions { display: flex; gap: .65rem; margin-top: 1.15rem; flex-wrap: wrap; }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: .42rem;
+      padding: .58rem 1.15rem; border-radius: 10px;
+      font-size: .86rem; font-family: 'DM Sans', sans-serif; font-weight: 600;
+      cursor: pointer; border: none; transition: all .2s cubic-bezier(.22,1,.36,1);
+    }
+    .btn svg { width: 14px; height: 14px; }
+
+    .btn-primary { background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff; box-shadow: 0 0 22px rgba(59,130,246,.28); }
+    .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 0 36px rgba(59,130,246,.48), 0 6px 20px rgba(0,0,0,.35); }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+    .btn-secondary { background: rgba(255,255,255,.05); color: var(--muted); border: 1px solid rgba(255,255,255,.08); }
+    .btn-secondary:hover { background: rgba(255,255,255,.09); color: var(--text); border-color: rgba(255,255,255,.14); }
+
+    .btn-ghost { background: transparent; color: var(--subtle); border: 1px solid rgba(255,255,255,.05); }
+    .btn-ghost:hover { background: rgba(239,68,68,.07); color: #f87171; border-color: rgba(239,68,68,.2); }
+
+    /* ── College note ── */
+    .note {
+      display: flex; gap: .6rem; align-items: flex-start;
+      background: rgba(234,179,8,.05); border: 1px solid rgba(234,179,8,.18);
+      border-radius: 10px; padding: .8rem 1rem;
+      font-size: .82rem; color: #fde68a; margin-top: 1.4rem; line-height: 1.55;
+    }
+    .note > svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: .1rem; color: #fbbf24; }
+    .note strong { font-weight: 600; }
+    .note em { font-style: normal; color: #fef3c7; }
+
+    /* ── Scale details ── */
+    details { margin-top: 1.3rem; }
+    summary {
+      cursor: pointer; list-style: none;
+      font-size: .82rem; font-weight: 600; color: #60a5fa;
+      user-select: none; display: inline-flex; align-items: center; gap: .4rem;
+      transition: color .15s;
+    }
+    summary:hover { color: #93c5fd; }
+    summary::-webkit-details-marker { display: none; }
+    .chev { width: 13px; height: 13px; transition: transform .2s ease; flex-shrink: 0; }
+    details[open] summary .chev { transform: rotate(90deg); }
+
+    .scale-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 1rem; }
+    .scale-label { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--subtle); text-align: center; margin-bottom: .45rem; }
+    .scale-table { width: 100%; border-collapse: collapse; font-size: .79rem; }
+    .scale-table th { background: rgba(255,255,255,.025); padding: .33rem .6rem; text-align: left; font-weight: 600; color: var(--subtle); font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; }
+    .scale-table td { padding: .28rem .6rem; border-top: 1px solid rgba(255,255,255,.035); color: var(--muted); }
+    .scale-table td:first-child { color: var(--text); font-weight: 500; }
+
+    /* ── Section labels ── */
+    .section-label { font-size: .68rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--subtle); text-align: center; margin-bottom: 1rem; }
+
+    /* ── Cumulative separator ── */
+    .cumulative-section { margin-top: 2rem; }
+    .cumulative-divider {
+      display: flex; align-items: center; gap: 1rem;
+      margin-bottom: 1.25rem;
+    }
+    .cumulative-divider::before,
+    .cumulative-divider::after {
+      content: ''; flex: 1; height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.1), transparent);
+    }
+    .cumulative-divider span {
+      font-size: .68rem; font-weight: 700;
+      text-transform: uppercase; letter-spacing: .1em;
+      color: var(--subtle); white-space: nowrap;
+      display: flex; align-items: center; gap: .4rem;
+    }
+    .cumulative-divider span svg { width: 12px; height: 12px; opacity: .6; }
+
+    /* ── Results grid ── */
+    .results-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; }
+
+    /* ── Result cards ── */
+    .result-card {
+      position: relative; border-radius: 22px;
+      padding: 1.7rem 1.3rem 1.5rem;
+      text-align: center; display: flex; flex-direction: column; align-items: center;
+      overflow: hidden;
+      transition: transform .24s cubic-bezier(.22,1,.36,1), box-shadow .24s ease;
+    }
+    .result-card::before {
+      content: ''; position: absolute; inset: 0;
+      background: rgba(6,6,15,.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+      border-radius: 22px; border: 1px solid rgba(255,255,255,.06);
+    }
+    .result-card::after {
+      content: ''; position: absolute;
+      top: 0; left: 20%; right: 20%; height: 1px; border-radius: 100px;
+    }
+    .result-card > * { position: relative; z-index: 1; }
+
+    .result-card.hs-w   { box-shadow: 0 0 44px rgba(129,140,248,.13), 0 10px 48px rgba(0,0,0,.5); }
+    .result-card.hs-uw  { box-shadow: 0 0 44px rgba(34,211,238,.11),  0 10px 48px rgba(0,0,0,.5); }
+    .result-card.col-w  { box-shadow: 0 0 44px rgba(192,132,252,.12), 0 10px 48px rgba(0,0,0,.5); }
+    .result-card.col-uw { box-shadow: 0 0 44px rgba(45,212,191,.11),  0 10px 48px rgba(0,0,0,.5); }
+
+    .result-card.hs-w::after  { background: linear-gradient(90deg,transparent,var(--hs-w),transparent);   box-shadow: 0 0 14px rgba(129,140,248,.8); }
+    .result-card.hs-uw::after { background: linear-gradient(90deg,transparent,var(--hs-uw),transparent);  box-shadow: 0 0 14px rgba(34,211,238,.8);  }
+    .result-card.col-w::after  { background: linear-gradient(90deg,transparent,var(--col-w),transparent); box-shadow: 0 0 14px rgba(192,132,252,.8); }
+    .result-card.col-uw::after { background: linear-gradient(90deg,transparent,var(--col-uw),transparent);box-shadow: 0 0 14px rgba(45,212,191,.8);  }
+
+    .result-card.hs-w:hover  { transform: translateY(-5px); box-shadow: 0 0 64px rgba(129,140,248,.24), 0 18px 56px rgba(0,0,0,.55); }
+    .result-card.hs-uw:hover { transform: translateY(-5px); box-shadow: 0 0 64px rgba(34,211,238,.22),  0 18px 56px rgba(0,0,0,.55); }
+    .result-card.col-w:hover  { transform: translateY(-5px); box-shadow: 0 0 64px rgba(192,132,252,.22), 0 18px 56px rgba(0,0,0,.55); }
+    .result-card.col-uw:hover { transform: translateY(-5px); box-shadow: 0 0 64px rgba(45,212,191,.22),  0 18px 56px rgba(0,0,0,.55); }
+
+    /* Cumulative cards — slightly elevated border */
+    .result-card.cumul::before { border-color: rgba(255,255,255,.11); }
+
+    .rc-school { font-size: .67rem; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: var(--subtle); }
+    .rc-type   { font-size: .77rem; color: var(--muted); margin-top: .2rem; margin-bottom: .9rem; }
+    .rc-gpa    { font-size: 3.5rem; font-weight: 800; line-height: 1; margin-bottom: .7rem; font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+
+    .hs-w  .rc-gpa { color: var(--hs-w);  text-shadow: 0 0 32px rgba(129,140,248,.55); }
+    .hs-uw .rc-gpa { color: var(--hs-uw); text-shadow: 0 0 32px rgba(34,211,238,.55);  }
+    .col-w  .rc-gpa { color: var(--col-w);  text-shadow: 0 0 32px rgba(192,132,252,.55); }
+    .col-uw .rc-gpa { color: var(--col-uw); text-shadow: 0 0 32px rgba(45,212,191,.55); }
+
+    .rc-msg { font-size: .77rem; color: var(--subtle); font-style: italic; line-height: 1.45; }
+    .rc-msg.warn { color: #fbbf24; font-style: normal; font-weight: 500; }
+
+    /* ── Cumulative fade-in ── */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .cumulative-section.visible { animation: fadeUp .35s cubic-bezier(.22,1,.36,1) both; }
+
+    /* ── Reduced motion ── */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 580px) {
+      .row-header { display: none; }
+      .class-row {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto auto;
+      }
+      .class-row .name-input    { grid-column: 1 / -1; }
+      .class-row .grade-select  { grid-column: 1; }
+      .class-row .level-select  { grid-column: 2; }
+      .class-row .credits-select { grid-column: 1; }
+      .class-row .core-toggle   { grid-column: 1; }
+      .class-row .del-btn       { grid-column: 2; justify-self: end; }
+      .results-grid  { grid-template-columns: 1fr; }
+      .scale-grid    { grid-template-columns: 1fr; }
+      header h1      { font-size: 2.3rem; }
+      .btn-add-year  { margin-left: 0; }
+      #user-bar      { top: .9rem; right: .9rem; }
+    }
+
+    /* ── Auth overlay ── */
+    #auth-overlay {
+      position: fixed; inset: 0; z-index: 1000;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(2, 6, 23, 0.97);
+      backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    }
+
+    .auth-card {
+      width: 100%; max-width: 420px; margin: 1rem;
+      background: rgba(15, 23, 42, 0.88);
+      backdrop-filter: blur(28px); -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255,255,255,.09);
+      border-radius: 24px;
+      padding: 2.4rem 2rem 2rem;
+      box-shadow: 0 0 80px rgba(59,130,246,.15), 0 32px 80px rgba(0,0,0,.65);
+    }
+
+    .auth-header { text-align: center; margin-bottom: 1.8rem; }
+    .auth-badge {
+      display: inline-flex; align-items: center; gap: .4rem;
+      background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.28);
+      border-radius: 100px; padding: .28rem .85rem;
+      font-size: .7rem; font-weight: 600; color: #93c5fd;
+      text-transform: uppercase; letter-spacing: .09em;
+      margin-bottom: 1.1rem;
+    }
+    .auth-badge svg { width: 10px; height: 10px; }
+    .auth-title {
+      font-size: 1.7rem; font-weight: 800; letter-spacing: -0.04em;
+      background: linear-gradient(140deg, #e0e7ff 0%, #93c5fd 40%, #60a5fa 80%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: .4rem;
+    }
+    .auth-sub { font-size: .86rem; color: var(--muted); line-height: 1.5; }
+
+    .auth-fields { display: flex; flex-direction: column; gap: .65rem; margin-bottom: 1rem; }
+    .auth-fields input { padding: .65rem 1rem; font-size: .9rem; }
+
+    .auth-msg {
+      padding: .6rem .9rem; border-radius: 10px;
+      font-size: .82rem; margin-bottom: .9rem; line-height: 1.45;
+    }
+    .auth-msg.error { background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.28); color: #fca5a5; }
+    .auth-msg.success { background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.28); color: #86efac; }
+
+    .auth-submit { width: 100%; justify-content: center; padding: .68rem; font-size: .93rem; margin-bottom: .85rem; }
+
+    .auth-toggle { text-align: center; font-size: .83rem; color: var(--muted); }
+    .auth-toggle-btn {
+      background: none; border: none; color: #93c5fd; font-weight: 600;
+      cursor: pointer; font-family: 'DM Sans', sans-serif; font-size: .83rem;
+      padding: 0; margin-left: .25rem; transition: color .15s;
+    }
+    .auth-toggle-btn:hover { color: #bfdbfe; text-decoration: underline; }
+
+    /* ── User bar ── */
+    #user-bar {
+      position: absolute; top: 1.5rem; right: 1.5rem;
+      align-items: center; gap: .65rem; z-index: 2;
+    }
+    #user-email-display {
+      font-size: .8rem; color: var(--muted);
+      max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    }
+    .btn-signout {
+      padding: .34rem .8rem; font-size: .78rem; font-weight: 600;
+      background: rgba(255,255,255,.05); color: var(--subtle);
+      border: 1px solid rgba(255,255,255,.08); border-radius: 8px;
+      cursor: pointer; font-family: 'DM Sans', sans-serif;
+      transition: all .18s;
+    }
+    .btn-signout:hover { background: rgba(239,68,68,.08); color: #f87171; border-color: rgba(239,68,68,.25); }
+
+    /* ── Save indicator ── */
+    #save-indicator {
+      position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 50;
+      display: none; align-items: center; gap: .45rem;
+      background: rgba(15,23,42,.9); border: 1px solid rgba(255,255,255,.1);
+      border-radius: 10px; padding: .45rem .85rem;
+      font-size: .78rem; color: var(--muted);
+      backdrop-filter: blur(12px);
+      animation: fadeUp .25s ease both;
+    }
+    #save-indicator svg { width: 13px; height: 13px; color: #4ade80; }
+  </style>
+</head>
+<body>
+
+<!-- ── Auth overlay ── -->
+<div id="auth-overlay" style="display:none">
+  <div class="auth-card">
+    <div class="auth-header">
+      <div class="auth-badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        GPA Calculator
+      </div>
+      <h2 class="auth-title" id="auth-title">Welcome back</h2>
+      <p class="auth-sub" id="auth-subtitle">Sign in to save and sync your GPA data across devices.</p>
+    </div>
+
+    <div id="auth-msg" class="auth-msg error" style="display:none"></div>
+
+    <div class="auth-fields">
+      <input type="email" id="auth-email" placeholder="Email address" autocomplete="email"
+             onkeydown="if(event.key==='Enter') handleAuthSubmit()" />
+      <input type="password" id="auth-password" placeholder="Password" autocomplete="current-password"
+             onkeydown="if(event.key==='Enter') handleAuthSubmit()" />
+    </div>
+
+    <button id="auth-submit-btn" class="btn btn-primary auth-submit" onclick="handleAuthSubmit()">Sign In</button>
+
+    <p class="auth-toggle">
+      <span id="auth-toggle-text">Don't have an account?</span>
+      <button class="auth-toggle-btn" onclick="toggleAuthMode()" id="auth-mode-btn">Create one</button>
+    </p>
+  </div>
+</div>
+
+<!-- ── App (shown after auth) ── -->
+<div id="app-content" style="display:block">
+
+<header>
+  <!-- User bar -->
+  <div id="user-bar" style="display:none">
+    <span id="user-email-display"></span>
+    <button class="btn-signout" onclick="handleSignOut()">Sign out</button>
+  </div>
+
+  <div class="badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+    Academic GPA Tool
+  </div>
+  <h1>Calculate Your GPA</h1>
+  <p>High School &amp; College — Weighted and Unweighted, instantly.</p>
+  <div class="h-divider"></div>
+</header>
+
+<div class="container">
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+      </div>
+      <span class="card-title">Your Classes</span>
+    </div>
+
+    <!-- Year tab bar -->
+    <div class="year-tab-bar" id="year-tab-bar">
+      <!-- tabs injected by JS -->
+      <button class="btn-add-year" id="add-year-btn" onclick="addYear()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Year
+      </button>
+    </div>
+
+    <!-- Column headers -->
+    <div class="row-header">
+      <span>Class name <span style="font-weight:400;text-transform:none;opacity:.55">(optional)</span></span>
+      <span>Grade</span>
+      <span>Course level</span>
+      <span>Credits</span>
+      <span title="ALL = counts for HS &amp; College GPA. HS = counts for HS GPA only (not college).">Counts for*</span>
+      <span></span>
+    </div>
+
+    <div style="margin-bottom:1rem;padding:.55rem .85rem;background:rgba(59,130,246,.05);border:1px solid rgba(59,130,246,.15);border-radius:10px;font-size:.76rem;color:#93c5fd;line-height:1.55;">
+      <strong>*Counts for:</strong> Click the <strong>ALL</strong> button on a class to change it to <strong>HS</strong>. Classes set to <strong>ALL</strong> count toward both your High School and College GPA. Classes set to <strong>HS</strong> count only toward your High School GPA (e.g. PE, electives that colleges don't consider).
+    </div>
+
+    <!-- Year panels injected by JS -->
+    <div id="year-panels"></div>
+
+    <div class="actions">
+      <button class="btn btn-primary" onclick="addRow()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Add Class
+      </button>
+      <button class="btn btn-secondary" onclick="clearYear()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+        Clear Year
+      </button>
+      <button class="btn btn-ghost" onclick="resetAll()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-3.87"/></svg>
+        Reset All
+      </button>
+      <button class="btn btn-secondary" id="save-btn" onclick="manualSave()" style="margin-left:auto">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+        Save
+      </button>
+    </div>
+
+    <div class="note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+      <span>
+        <strong>College GPA tip:</strong> Only add grades for <em>core classes</em>
+        (English, Math, Science, History, Foreign Language). Electives, gym, and
+        study hall are typically excluded from official college GPA calculations.
+      </span>
+    </div>
+
+    <details>
+      <summary>
+        <svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        View grading scales used
+      </summary>
+      <div class="scale-grid">
+        <div>
+          <div class="scale-label">High School</div>
+          <table class="scale-table">
+            <thead><tr><th>Grade</th><th>Base (UW)</th><th>+Honors/HDE</th><th>+AP</th></tr></thead>
+            <tbody id="hs-scale-body"></tbody>
+          </table>
+        </div>
+        <div>
+          <div class="scale-label">College</div>
+          <table class="scale-table">
+            <thead><tr><th>Grade</th><th>Base (UW)</th><th>+Honors</th><th>+DE/HDE/AP</th></tr></thead>
+            <tbody id="col-scale-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </details>
+  </div>
+
+  <!-- ── Per-year results ── -->
+  <div class="section-label" id="year-results-label">Freshman GPA</div>
+  <div class="results-grid">
+    <div class="result-card hs-w">
+      <div class="rc-school">High School</div><div class="rc-type">Weighted</div>
+      <div class="rc-gpa" id="ry-hs-w">—</div>
+      <div class="rc-msg" id="my-hs-w">Enter grades above to calculate</div>
+    </div>
+    <div class="result-card hs-uw">
+      <div class="rc-school">High School</div><div class="rc-type">Unweighted</div>
+      <div class="rc-gpa" id="ry-hs-uw">—</div>
+      <div class="rc-msg" id="my-hs-uw">Enter grades above to calculate</div>
+    </div>
+    <div class="result-card col-w">
+      <div class="rc-school">College</div><div class="rc-type">Weighted</div>
+      <div class="rc-gpa" id="ry-col-w">—</div>
+      <div class="rc-msg" id="my-col-w">Enter grades above to calculate</div>
+    </div>
+    <div class="result-card col-uw">
+      <div class="rc-school">College</div><div class="rc-type">Unweighted</div>
+      <div class="rc-gpa" id="ry-col-uw">—</div>
+      <div class="rc-msg" id="my-col-uw">Enter grades above to calculate</div>
+    </div>
+  </div>
+
+  <!-- ── Cumulative results (shown when 2+ years) ── -->
+  <div class="cumulative-section" id="cumulative-section" style="display:none">
+    <div class="cumulative-divider">
+      <span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        Cumulative GPA — All Years
+      </span>
+    </div>
+    <div class="results-grid">
+      <div class="result-card hs-w cumul">
+        <div class="rc-school">High School</div><div class="rc-type">Weighted · Cumulative</div>
+        <div class="rc-gpa" id="rc-hs-w">—</div>
+        <div class="rc-msg" id="mc-hs-w">Add grades across years</div>
+      </div>
+      <div class="result-card hs-uw cumul">
+        <div class="rc-school">High School</div><div class="rc-type">Unweighted · Cumulative</div>
+        <div class="rc-gpa" id="rc-hs-uw">—</div>
+        <div class="rc-msg" id="mc-hs-uw">Add grades across years</div>
+      </div>
+      <div class="result-card col-w cumul">
+        <div class="rc-school">College</div><div class="rc-type">Weighted · Cumulative</div>
+        <div class="rc-gpa" id="rc-col-w">—</div>
+        <div class="rc-msg" id="mc-col-w">Add grades across years</div>
+      </div>
+      <div class="result-card col-uw cumul">
+        <div class="rc-school">College</div><div class="rc-type">Unweighted · Cumulative</div>
+        <div class="rc-gpa" id="rc-col-uw">—</div>
+        <div class="rc-msg" id="mc-col-uw">Add grades across years</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+</div><!-- /app-content -->
+
+<!-- Cloud save indicator -->
+<div id="save-indicator">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+  Saved to cloud
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+  // ── Constants ─────────────────────────────────────────────────────────────
+
+  const GRADES = ['A+','A','A−','B+','B','B−','C+','C','C−','D+','D','F'];
+  const HS_UW = { 'A+':4.25,'A':4.00,'A−':4.00,'B+':3.25,'B':3.00,'B−':3.00,'C+':2.25,'C':2.00,'C−':2.00,'D+':1.25,'D':1.00,'F':0.00 };
+  const COL_UW = { 'A+':4.00,'A':4.00,'A−':3.70,'B+':3.30,'B':3.00,'B−':2.70,'C+':2.30,'C':2.00,'C−':1.70,'D+':1.00,'D':1.00,'F':0.00 };
+  const HS_BONUS  = { CP:0, Honors:1.0, DE:0, HDE:1.0, AP:2.0 };
+  const COL_BONUS = { CP:0, Honors:0.5, DE:1.0, HDE:1.0, AP:1.0 };
+  const LEVELS = [
+    { value:'CP', label:'College Prep' }, { value:'Honors', label:'Honors' },
+    { value:'DE', label:'Dual Enrollment' }, { value:'HDE', label:'Honors DE' },
+    { value:'AP', label:'AP' },
+  ];
+  const YEAR_LABELS  = ['Freshman','Sophomore','Junior','Senior'];
+  const STORAGE_KEY  = 'gpa-calc-v1';
+  const X_SVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
+
+  // ── Global state ──────────────────────────────────────────────────────────
+
+  let activeYear = 0, totalYears = 0, rowId = 0;
+  let currentUser = null, authMode = 'signin';
+  let cloudSaveTimer = null, saveIndicatorTimer = null;
+  let restoring = false;
+  let sb = null; // Supabase client — set up after DOM ready
+
+  // ── DOM helpers ───────────────────────────────────────────────────────────
+
+  function getPanel(idx)     { return document.getElementById('panel-' + idx); }
+  function getClassList(idx) { return document.getElementById('class-list-' + idx); }
+  function getRows(yearIdx)  { return [...getClassList(yearIdx).querySelectorAll('.class-row')]; }
+
+  // ── Scale tables ──────────────────────────────────────────────────────────
+
+  (function buildScaleTables() {
+    const hsBody  = document.getElementById('hs-scale-body');
+    const colBody = document.getElementById('col-scale-body');
+    GRADES.forEach(g => {
+      const b = HS_UW[g]; const tr = document.createElement('tr');
+      tr.innerHTML = '<td>'+g+'</td><td>'+b.toFixed(2)+'</td>'
+        +'<td>'+(g==='F'?'0.00':(b+HS_BONUS.Honors).toFixed(2))+'</td>'
+        +'<td>'+(g==='F'?'0.00':(b+HS_BONUS.AP).toFixed(2))+'</td>';
+      hsBody.appendChild(tr);
+    });
+    GRADES.forEach(g => {
+      const b = COL_UW[g]; const tr = document.createElement('tr');
+      tr.innerHTML = '<td>'+g+'</td><td>'+b.toFixed(2)+'</td>'
+        +'<td>'+(g==='F'?'0.00':(b+0.5).toFixed(2))+'</td>'
+        +'<td>'+(g==='F'?'0.00':(b+1.0).toFixed(2))+'</td>';
+      colBody.appendChild(tr);
+    });
+  })();
+
+  // ── Row building ──────────────────────────────────────────────────────────
+
+  function buildRow() {
+    const div = document.createElement('div');
+    div.className = 'class-row';
+    div.dataset.rowId = ++rowId;
+
+    const nameIn = document.createElement('input');
+    nameIn.type = 'text'; nameIn.className = 'name-input';
+    nameIn.placeholder = 'e.g. AP Calculus BC';
+    nameIn.setAttribute('aria-label','Class name');
+    nameIn.addEventListener('input', saveState);
+
+    const gradeEl = document.createElement('select');
+    gradeEl.className = 'grade-select unset';
+    gradeEl.setAttribute('aria-label','Grade');
+    gradeEl.innerHTML = '<option value="">— Grade —</option>' + GRADES.map(g => '<option value="'+g+'">'+g+'</option>').join('');
+    gradeEl.addEventListener('change', function(){ gradeEl.classList.toggle('unset',!gradeEl.value); calculate(); });
+
+    const levelEl = document.createElement('select');
+    levelEl.className = 'level-select';
+    levelEl.setAttribute('aria-label','Course level');
+    levelEl.innerHTML = LEVELS.map(l => '<option value="'+l.value+'">'+l.label+'</option>').join('');
+    levelEl.addEventListener('change', calculate);
+
+    const creditsEl = document.createElement('select');
+    creditsEl.className = 'credits-select';
+    creditsEl.setAttribute('aria-label','Credits');
+    creditsEl.innerHTML = '<option value="1">1.0</option><option value="0.5">0.5</option>';
+    creditsEl.addEventListener('change', calculate);
+
+    const coreBtn = document.createElement('button');
+    coreBtn.className = 'core-toggle is-core'; coreBtn.textContent = 'ALL';
+    coreBtn.setAttribute('aria-label','Toggle scope');
+    coreBtn.addEventListener('click', function(){
+      const goHS = div.dataset.nonCore !== 'true';
+      div.dataset.nonCore = goHS ? 'true' : 'false';
+      coreBtn.textContent = goHS ? 'HS' : 'ALL';
+      coreBtn.className = goHS ? 'core-toggle is-hs' : 'core-toggle is-core';
+      div.classList.toggle('non-core', goHS);
+      calculate();
+    });
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'del-btn'; delBtn.innerHTML = X_SVG;
+    delBtn.setAttribute('aria-label','Remove row');
+    delBtn.addEventListener('click', function(){
+      div.style.animation = 'rowOut .2s ease forwards';
+      setTimeout(function(){ div.remove(); syncDeleteButtons(); calculate(); }, 200);
+    });
+
+    div.append(nameIn, gradeEl, levelEl, creditsEl, coreBtn, delBtn);
+    return div;
+  }
+
+  // ── Row / Year management ─────────────────────────────────────────────────
+
+  function addRow() {
+    var cl = getClassList(activeYear);
+    if (!cl) return; // safety guard
+    cl.appendChild(buildRow());
+    syncDeleteButtons();
+    calculate();
+  }
+
+  function clearYear() {
+    getClassList(activeYear).innerHTML = '';
+    for (var i = 0; i < 3; i++) addRow();
+  }
+
+  function resetAll() {
+    for (var i = totalYears - 1; i >= 1; i--) getPanel(i).remove();
+    totalYears = 1; activeYear = 0; rowId = 0;
+    getPanel(0).classList.add('active');
+    getClassList(0).innerHTML = '';
+    for (var i = 0; i < 3; i++) addRow();
+    renderTabs();
+  }
+
+  function syncDeleteButtons() {
+    var cl = getClassList(activeYear);
+    if (!cl) return;
+    var rows = cl.querySelectorAll('.class-row');
+    rows.forEach(function(r){ r.querySelector('.del-btn').disabled = rows.length <= 1; });
+  }
+
+  function renderTabs() {
+    var bar = document.getElementById('year-tab-bar');
+    var addBtn = document.getElementById('add-year-btn');
+    bar.querySelectorAll('.ytab').forEach(function(t){ t.remove(); });
+
+    for (var i = 0; i < totalYears; i++) {
+      var tab = document.createElement('button');
+      tab.className = 'ytab' + (i === activeYear ? ' active' : '');
+      tab.textContent = YEAR_LABELS[i];
+      if (i === totalYears - 1 && totalYears > 1) {
+        var rm = document.createElement('span');
+        rm.className = 'ytab-remove'; rm.innerHTML = '×';
+        rm.addEventListener('click', function(e){ e.stopPropagation(); removeLastYear(); });
+        tab.appendChild(rm);
+      }
+      (function(idx){ tab.addEventListener('click', function(){ switchYear(idx); }); })(i);
+      bar.insertBefore(tab, addBtn);
+    }
+    addBtn.disabled = totalYears >= 4;
+    document.getElementById('year-results-label').textContent = YEAR_LABELS[activeYear] + ' GPA';
+
+    var cum = document.getElementById('cumulative-section');
+    var wasHidden = cum.style.display === 'none';
+    if (totalYears > 1) { cum.style.display = 'block'; if (wasHidden) cum.classList.add('visible'); }
+    else { cum.style.display = 'none'; cum.classList.remove('visible'); }
+  }
+
+  function switchYear(idx) {
+    if (idx === activeYear) return;
+    getPanel(activeYear).classList.remove('active');
+    activeYear = idx;
+    getPanel(activeYear).classList.add('active');
+    renderTabs(); calculate();
+  }
+
+  function addYear() {
+    if (totalYears >= 4) return;
+    var panel = document.createElement('div');
+    panel.className = 'year-panel'; panel.id = 'panel-' + totalYears;
+    var cl = document.createElement('div'); cl.id = 'class-list-' + totalYears;
+    panel.appendChild(cl);
+    document.getElementById('year-panels').appendChild(panel);
+    getPanel(activeYear).classList.remove('active');
+    activeYear = totalYears; totalYears++;
+    getPanel(activeYear).classList.add('active');
+    for (var i = 0; i < 3; i++) addRow();
+    renderTabs();
+  }
+
+  function removeLastYear() {
+    if (totalYears <= 1) return;
+    getPanel(totalYears - 1).remove();
+    if (activeYear >= totalYears - 1) activeYear = totalYears - 2;
+    totalYears--;
+    getPanel(activeYear).classList.add('active');
+    renderTabs(); calculate();
+  }
+
+  // ── Calculation ───────────────────────────────────────────────────────────
+
+  function calcRows(rows) {
+    var hsUW=0, hsW=0, colUW=0, colW=0, totalCredits=0, missing=0;
+    rows.forEach(function(row){
+      var grade = row.querySelector('.grade-select').value;
+      var level = row.querySelector('.level-select').value;
+      var credits = parseFloat(row.querySelector('.credits-select').value) || 1;
+      if (!grade) { missing++; return; }
+      var hsBase = HS_UW[grade]||0, colBase = COL_UW[grade]||0, isF = grade==='F';
+      hsUW  += hsBase * credits;
+      hsW   += (isF ? 0 : hsBase + HS_BONUS[level]) * credits;
+      colUW += colBase * credits;
+      colW  += (isF ? 0 : colBase + COL_BONUS[level]) * credits;
+      totalCredits += credits;
+    });
+    return { hsUW:hsUW, hsW:hsW, colUW:colUW, colW:colW, counted:totalCredits, missing:missing };
+  }
+
+  function applyResults(prefix, hsR, colR) {
+    var entries = [
+      ['r'+prefix+'-hs-w',  'm'+prefix+'-hs-w',  hsR.counted>0  ? hsR.hsW/hsR.counted   : null, hsR],
+      ['r'+prefix+'-hs-uw', 'm'+prefix+'-hs-uw', hsR.counted>0  ? hsR.hsUW/hsR.counted  : null, hsR],
+      ['r'+prefix+'-col-w', 'm'+prefix+'-col-w', colR.counted>0 ? colR.colW/colR.counted : null, colR],
+      ['r'+prefix+'-col-uw','m'+prefix+'-col-uw',colR.counted>0 ? colR.colUW/colR.counted: null, colR],
+    ];
+    entries.forEach(function(e){
+      var valEl = document.getElementById(e[0]), msgEl = document.getElementById(e[1]);
+      var gpa = e[2], res = e[3];
+      if (!valEl) return;
+      if (gpa === null) {
+        valEl.textContent = '—'; msgEl.className = 'rc-msg warn';
+        msgEl.textContent = res.missing > 0 ? 'Select a grade for at least one class above' : 'Add classes and select grades to calculate';
+      } else {
+        valEl.textContent = gpa.toFixed(2); msgEl.className = 'rc-msg';
+        msgEl.textContent = res.missing > 0 ? res.missing+' class'+(res.missing>1?'es':'')+' skipped (no grade selected)' : 'Based on '+res.counted+' class'+(res.counted>1?'es':'');
+      }
+    });
+  }
+
+  function calculate() {
+    if (totalYears === 0) return;
+    var yearAll = getRows(activeYear);
+    var yearCore = yearAll.filter(function(r){ return r.dataset.nonCore !== 'true'; });
+    applyResults('y', calcRows(yearAll), calcRows(yearCore));
+    if (totalYears > 1) {
+      var all = [], core = [];
+      for (var i = 0; i < totalYears; i++) {
+        var rows = getRows(i);
+        all = all.concat(rows);
+        core = core.concat(rows.filter(function(r){ return r.dataset.nonCore !== 'true'; }));
+      }
+      applyResults('c', calcRows(all), calcRows(core));
+    }
+    saveState();
+  }
+
+  // ── Persistence (localStorage) ────────────────────────────────────────────
+
+  function buildStateObject() {
+    var state = { totalYears:totalYears, activeYear:activeYear, years:[] };
+    for (var i = 0; i < totalYears; i++) {
+      state.years.push({ rows: getRows(i).map(function(row){
+        return {
+          name:    row.querySelector('.name-input').value,
+          grade:   row.querySelector('.grade-select').value,
+          level:   row.querySelector('.level-select').value,
+          credits: row.querySelector('.credits-select').value,
+          nonCore: row.dataset.nonCore === 'true',
+        };
+      })});
+    }
+    return state;
+  }
+
+  function saveState() {
+    if (restoring || totalYears === 0) return;
+    try {
+      var state = buildStateObject();
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch(e) {}
+  }
+
+  function restoreState(state) {
+    if (!state || !state.years || !state.years.length) return false;
+    restoring = true;
+    var container = document.getElementById('year-panels');
+    container.innerHTML = '';
+    totalYears = 0; activeYear = state.activeYear || 0; rowId = 0;
+
+    for (var i = 0; i < state.years.length; i++) {
+      var panel = document.createElement('div');
+      panel.className = 'year-panel' + (i === activeYear ? ' active' : '');
+      panel.id = 'panel-' + i;
+      var cl = document.createElement('div'); cl.id = 'class-list-' + i;
+      panel.appendChild(cl); container.appendChild(panel);
+
+      state.years[i].rows.forEach(function(saved){
+        var row = buildRow();
+        row.querySelector('.name-input').value = saved.name || '';
+        var g = row.querySelector('.grade-select'); g.value = saved.grade || ''; g.classList.toggle('unset',!g.value);
+        row.querySelector('.level-select').value = saved.level || 'CP';
+        row.querySelector('.credits-select').value = saved.credits || '1';
+        if (saved.nonCore) {
+          row.dataset.nonCore = 'true'; row.classList.add('non-core');
+          var btn = row.querySelector('.core-toggle'); btn.textContent = 'HS'; btn.className = 'core-toggle is-hs';
+        }
+        cl.appendChild(row);
+      });
+    }
+    totalYears = state.years.length;
+    for (var i = 0; i < totalYears; i++) {
+      var rows = getClassList(i).querySelectorAll('.class-row');
+      rows.forEach(function(r){ r.querySelector('.del-btn').disabled = rows.length <= 1; });
+    }
+    renderTabs();
+    restoring = false;
+    calculate();
+    return true;
+  }
+
+  function loadState() {
+    try { var raw = localStorage.getItem(STORAGE_KEY); if (!raw) return false; return restoreState(JSON.parse(raw)); }
+    catch(e) { return false; }
+  }
+
+  function initDefault() {
+    var container = document.getElementById('year-panels');
+    container.innerHTML = '';
+    var p = document.createElement('div'); p.className = 'year-panel active'; p.id = 'panel-0';
+    var c = document.createElement('div'); c.id = 'class-list-0';
+    p.appendChild(c); container.appendChild(p);
+    totalYears = 1; activeYear = 0; rowId = 0;
+    for (var i = 0; i < 3; i++) addRow();
+    renderTabs();
+  }
+
+  // ── Manual save button ────────────────────────────────────────────────────
+
+  function manualSave() {
+    var btn = document.getElementById('save-btn');
+    var origHTML = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = origHTML.replace('Save', 'Saving…');
+
+    // Save to localStorage
+    var state = buildStateObject();
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+
+    // Save to cloud if logged in
+    if (currentUser && sb) {
+      cloudSave(state).then(function(){
+        btn.innerHTML = origHTML.replace('Save', 'Saved!');
+        setTimeout(function(){ btn.innerHTML = origHTML; btn.disabled = false; }, 1800);
+      });
+    } else {
+      btn.innerHTML = origHTML.replace('Save', 'Saved!');
+      setTimeout(function(){ btn.innerHTML = origHTML; btn.disabled = false; }, 1800);
+    }
+  }
+
+  // ── Supabase (cloud) ─────────────────────────────────────────────────────
+
+  function cloudSave(state) {
+    if (!currentUser || !sb) return Promise.resolve();
+    return sb.from('gpa_states').upsert(
+      { user_id: currentUser.id, state_json: state, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    ).then(function(result){
+      if (result.error) { console.error('Cloud save failed:', result.error.message); }
+      else { showSaveIndicator(); }
+    });
+  }
+
+  function cloudLoad() {
+    if (!currentUser || !sb) return Promise.resolve(null);
+    return sb.from('gpa_states').select('state_json').eq('user_id', currentUser.id).single()
+      .then(function(result){
+        if (result.error || !result.data) return null;
+        return result.data.state_json;
+      }).catch(function(){ return null; });
+  }
+
+  function showSaveIndicator() {
+    var el = document.getElementById('save-indicator');
+    el.style.display = 'flex';
+    clearTimeout(saveIndicatorTimer);
+    saveIndicatorTimer = setTimeout(function(){ el.style.display = 'none'; }, 2200);
+  }
+
+  // ── Auth UI ───────────────────────────────────────────────────────────────
+
+  function toggleAuthMode() {
+    authMode = authMode === 'signin' ? 'signup' : 'signin';
+    var isSU = authMode === 'signup';
+    document.getElementById('auth-title').textContent = isSU ? 'Create account' : 'Welcome back';
+    document.getElementById('auth-subtitle').textContent = isSU ? 'Track your GPA and access it from any device.' : 'Sign in to sync your GPA data across devices.';
+    document.getElementById('auth-submit-btn').textContent = isSU ? 'Create Account' : 'Sign In';
+    document.getElementById('auth-toggle-text').textContent = isSU ? 'Already have an account?' : "Don't have an account?";
+    document.getElementById('auth-mode-btn').textContent = isSU ? 'Sign in' : 'Create one';
+    document.getElementById('auth-msg').style.display = 'none';
+  }
+
+  function handleAuthSubmit() {
+    if (!sb) { alert('Cloud service unavailable. Please reload.'); return; }
+    var email = document.getElementById('auth-email').value.trim();
+    var password = document.getElementById('auth-password').value;
+    var btn = document.getElementById('auth-submit-btn');
+    var msgEl = document.getElementById('auth-msg');
+
+    if (!email || !password) { msgEl.className='auth-msg error'; msgEl.textContent='Please enter email and password.'; msgEl.style.display='block'; return; }
+    if (password.length < 6) { msgEl.className='auth-msg error'; msgEl.textContent='Password must be at least 6 characters.'; msgEl.style.display='block'; return; }
+
+    btn.disabled = true; msgEl.style.display = 'none';
+    btn.textContent = authMode === 'signin' ? 'Signing in…' : 'Creating account…';
+
+    if (authMode === 'signin') {
+      sb.auth.signInWithPassword({ email:email, password:password }).then(function(res){
+        if (res.error) { msgEl.className='auth-msg error'; msgEl.textContent=res.error.message; msgEl.style.display='block'; btn.disabled=false; btn.textContent='Sign In'; }
+      });
+    } else {
+      sb.auth.signUp({ email:email, password:password }).then(function(res){
+        if (res.error) { msgEl.className='auth-msg error'; msgEl.textContent=res.error.message; msgEl.style.display='block'; }
+        else { msgEl.className='auth-msg success'; msgEl.textContent='Account created! Check your email for a confirmation link, then sign in.'; msgEl.style.display='block'; }
+        btn.disabled=false; btn.textContent='Create Account';
+      });
+    }
+  }
+
+  function handleSignOut() {
+    if (!sb) return;
+    sb.auth.signOut().then(function(){
+      currentUser = null;
+      document.getElementById('user-bar').style.display = 'none';
+      // App stays visible — just loses cloud sync
+    });
+  }
+
+  // ── Init ──────────────────────────────────────────────────────────────────
+
+  (function init() {
+    // 1. Show app immediately (skip auth wall for now — we load from localStorage first)
+    document.getElementById('app-content').style.display = 'block';
+
+    // 2. Load from localStorage or create defaults
+    if (!loadState()) initDefault();
+
+    // 3. Try to set up Supabase
+    try {
+      sb = supabase.createClient(
+        'https://qspnraniadsleifzyfxb.supabase.co',
+        'sb_publishable_IBioQr1MCp8OhlNPC2b-Yg_FFG5rODt'
+      );
+
+      // Check if already logged in
+      sb.auth.getSession().then(function(res){
+        if (res.data && res.data.session && res.data.session.user) {
+          onLogin(res.data.session.user);
+        }
+        // If not logged in, app still works — just no cloud sync
+      });
+
+      // Listen for future auth changes
+      sb.auth.onAuthStateChange(function(event, session){
+        if (session && session.user) {
+          onLogin(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          currentUser = null;
+          document.getElementById('user-bar').style.display = 'none';
+        }
+      });
+    } catch(e) {
+      console.warn('Supabase init failed:', e.message);
+      // App still works — just no cloud sync
+      document.getElementById('auth-overlay').style.display = 'none';
+    }
+  })();
+
+  function onLogin(user) {
+    currentUser = user;
+    document.getElementById('auth-overlay').style.display = 'none';
+    document.getElementById('app-content').style.display = 'block';
+    document.getElementById('user-bar').style.display = 'flex';
+    document.getElementById('user-email-display').textContent = user.email;
+
+    // Try to load cloud data (overrides localStorage if available)
+    cloudLoad().then(function(cloudState){
+      if (cloudState) restoreState(cloudState);
+    });
+  }
+</script>
+
+</body>
+</html>
